@@ -227,7 +227,23 @@ export interface PluginTimelineRendererContribution<Schema extends ZodType = Zod
   Component: ComponentType<PluginTimelineItemProps<ZodOutput<Schema>>>;
 }
 
+export interface PluginComposerDraft {
+  text: string;
+  revision: number;
+  submissionRevision: number;
+}
+
+export interface PluginComposerRef {
+  /** Read the live text of an open agent composer on this client. */
+  getDraft(): PluginComposerDraft;
+  /** Replace text only if the draft still has this revision. Attachments are preserved. */
+  replaceDraft(input: { text: string; revision: number }): PluginComposerDraft;
+  subscribe(listener: (draft: PluginComposerDraft) => void): PluginCleanup;
+}
+
 export interface PluginCommandCapabilities {
+  /** Local client capability; never sends a message or changes a remote client's draft. */
+  composer: { ref(agentId: string): PluginComposerRef };
   paseo: PaseoApi;
   rpc<InputSchema extends ZodType, OutputSchema extends ZodType>(
     contract: PluginRpcContract<InputSchema, OutputSchema>,

@@ -22,6 +22,7 @@ export interface RegisteredPluginButton {
   placement: ButtonPlacement;
   context: PluginButtonContext;
   button: ResolvedPluginButton;
+  draftOnly?: boolean;
   pending: boolean;
   open: boolean;
 }
@@ -67,6 +68,19 @@ export class PluginButtonStore {
     installation: InstalledPlugin,
     input: PluginComposerPillContribution,
   ): PluginButtonRegistration {
+    if (input.scope === "draft") {
+      return this.add(
+        installation,
+        { ...input, workspaceId: "" },
+        "composer",
+        {
+          context: "agent",
+          workspaceId: "",
+          agentId: "",
+        },
+        true,
+      );
+    }
     if (!input.agentId.trim()) throw new Error("Plugin composer pill needs an agent");
     return this.add(installation, input, "composer", {
       context: "agent",
@@ -80,9 +94,11 @@ export class PluginButtonStore {
     input: PluginHeaderButtonContribution,
     placement: ButtonPlacement,
     context: PluginButtonContext,
+    draftOnly = false,
   ): PluginButtonRegistration {
     const id = requireButtonId(input.id);
-    if (!context.workspaceId.trim()) throw new Error("Plugin button needs a workspace");
+    if (!draftOnly && !context.workspaceId.trim())
+      throw new Error("Plugin button needs a workspace");
     const duplicate = this.entries.some(
       (entry) =>
         entry.installation === installation &&
@@ -103,6 +119,7 @@ export class PluginButtonStore {
         installation,
         placement,
         context,
+        draftOnly,
         button: initialButton,
         pending: false,
         open: false,
@@ -162,7 +179,13 @@ export function buttonMatches(
   serverId: string,
   workspaceId: string,
   agentId: string | null,
+  draft = false,
 ): boolean {
+  if (entry.draftOnly)
+    return (
+      draft && agentId !== null && entry.installation.serverId === serverId && entry.button.visible
+    );
+  if (draft) return false;
   if (
     entry.installation.serverId !== serverId ||
     entry.context.workspaceId !== workspaceId ||

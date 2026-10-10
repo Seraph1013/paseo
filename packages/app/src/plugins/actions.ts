@@ -1,3 +1,4 @@
+import { createPluginComposer } from "./composer";
 import { callPluginRpc } from "@getpaseo/plugin/client/host";
 import type {
   PluginAgentCommandContext,
@@ -32,6 +33,7 @@ export function createPluginCapabilities(
     navigation.openSurface(plugin.id, screenId, params);
   }
   return {
+    composer: createPluginComposer(plugin.serverId, plugin.lifetime.signal),
     paseo: plugin.paseo,
     rpc: (contract, input) => callPluginRpc(contract, plugin.invoke, input),
     openSettings(screenId) {

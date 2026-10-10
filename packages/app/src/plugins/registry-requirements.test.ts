@@ -1,3 +1,4 @@
+import { createPluginComposer } from "./composer";
 import { createPluginHosts } from "./hosts";
 import { afterEach, expect, it } from "vitest";
 import { DaemonClient } from "@getpaseo/client/internal/daemon-client";
@@ -24,6 +25,7 @@ function registry(version: string) {
           },
           installation.lifetime.signal,
         ),
+        composer: createPluginComposer(installation.serverId, installation.lifetime.signal),
         paseo: installation.paseo,
         rpc: async () => {
           throw new Error("No RPC in this plugin");

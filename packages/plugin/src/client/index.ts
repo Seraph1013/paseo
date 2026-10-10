@@ -25,6 +25,8 @@ export type {
   PluginTimelineTransformerContribution,
   PluginTimelineItemProps,
   PluginTimelineRendererContribution,
+  PluginComposerDraft,
+  PluginComposerRef,
   PluginCommandCapabilities,
   PluginGlobalCommandContext,
   PluginWorkspaceCommandContext,

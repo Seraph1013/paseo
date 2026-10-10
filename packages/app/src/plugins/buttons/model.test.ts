@@ -41,6 +41,36 @@ function button(onPress = () => {}): PluginButton {
 }
 
 describe("plugin buttons", () => {
+  it("shows draft pills before an agent exists and keeps host and agent targets isolated", () => {
+    const buttons = store();
+    const plugin = installation();
+    const registration = buttons.addComposerPill(plugin, {
+      id: "prompts",
+      scope: "draft",
+      button: button(),
+    });
+    const entry = buttons.getSnapshot()[0];
+    expect(buttonMatches(entry, "host-a", "", "new-workspace", true)).toBe(true);
+    expect(buttonMatches(entry, "host-a", "workspace", "draft-1", true)).toBe(true);
+    expect(buttonMatches(entry, "host-b", "", "new-workspace", true)).toBe(false);
+    expect(buttonMatches(entry, "host-a", "workspace", "agent")).toBe(false);
+    expect(buttonMatches(entry, "host-a", "workspace", null)).toBe(false);
+    buttons.addComposerPill(plugin, {
+      id: "prompts",
+      workspaceId: "workspace",
+      agentId: "agent",
+      button: button(),
+    });
+    expect(buttonMatches(buttons.getSnapshot()[1], "host-a", "workspace", "agent", true)).toBe(
+      false,
+    );
+    registration.update({ visible: false });
+    expect(buttonMatches(buttons.getSnapshot()[0], "host-a", "", "new-workspace", true)).toBe(
+      false,
+    );
+    registration.remove();
+    expect(buttons.getSnapshot()).toHaveLength(1);
+  });
   it("updates visibility in place, closes hidden content, and scopes each placement", () => {
     const buttons = store();
     const plugin = installation();

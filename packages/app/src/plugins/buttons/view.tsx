@@ -513,15 +513,15 @@ function OverflowPages({
 
 const ThemedOverflowPages = withUnistyles(OverflowPages);
 
-function useButtons(serverId: string, workspaceId: string, agentId: string | null) {
+function useButtons(serverId: string, workspaceId: string, agentId: string | null, draft = false) {
   const entries = useSyncExternalStore(
     pluginButtonStore.subscribe,
     pluginButtonStore.getSnapshot,
     pluginButtonStore.getSnapshot,
   );
   return useMemo(
-    () => entries.filter((entry) => buttonMatches(entry, serverId, workspaceId, agentId)),
-    [entries, serverId, workspaceId, agentId],
+    () => entries.filter((entry) => buttonMatches(entry, serverId, workspaceId, agentId, draft)),
+    [entries, serverId, workspaceId, agentId, draft],
   );
 }
 
@@ -529,8 +529,9 @@ export function useHasPluginComposerPills(
   serverId: string,
   workspaceId: string,
   agentId: string,
+  draft = false,
 ): boolean {
-  return useButtons(serverId, workspaceId, agentId).length > 0;
+  return useButtons(serverId, workspaceId, agentId, draft).length > 0;
 }
 
 export function PluginComposerPills({
@@ -538,16 +539,30 @@ export function PluginComposerPills({
   workspaceId,
   agentId,
   compact,
+  draft = false,
 }: {
   serverId: string;
   workspaceId: string;
   agentId: string;
   compact: boolean;
+  draft?: boolean;
 }) {
-  const entries = useButtons(serverId, workspaceId, agentId);
+  const entries = useButtons(serverId, workspaceId, agentId, draft);
+  const contextualEntries = useMemo(
+    () =>
+      entries.map((entry) =>
+        draft
+          ? {
+              ...entry,
+              context: { context: "agent" as const, workspaceId, agentId },
+            }
+          : entry,
+      ),
+    [entries, draft, workspaceId, agentId],
+  );
   const hosts = useHosts();
   const hostLabel = hosts.find((host) => host.serverId === serverId)?.label ?? serverId;
-  return entries.map((entry) => (
+  return contextualEntries.map((entry) => (
     <ThemedPluginButton
       key={entry.key}
       entry={entry}

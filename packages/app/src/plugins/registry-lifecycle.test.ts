@@ -1,3 +1,4 @@
+import { createPluginComposer } from "./composer";
 import { createPluginHosts } from "./hosts";
 import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
 import type { PaseoApi } from "@getpaseo/client";
@@ -42,6 +43,7 @@ function registry() {
           },
           installation.lifetime.signal,
         ),
+        composer: createPluginComposer(installation.serverId, installation.lifetime.signal),
         paseo: installation.paseo,
         rpc: async () => {
           throw new Error("Unexpected plugin RPC");

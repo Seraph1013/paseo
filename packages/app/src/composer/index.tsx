@@ -111,6 +111,13 @@ import { resolveActiveSendBehavior } from "./input/state";
 import { useKeyboardActionHandler } from "@/hooks/use-keyboard-action-handler";
 import type { KeyboardActionDefinition } from "@/keyboard/keyboard-action-dispatcher";
 import type { MessageInputKeyboardActionKind } from "@/keyboard/actions";
+import { PluginComposerPills, useHasPluginComposerPills } from "@/plugins";
+import { buildDraftStoreKey } from "@/stores/draft-keys";
+import {
+  registerPluginComposer,
+  notifyPluginComposer,
+  markPluginComposerSubmitted,
+} from "@/plugins/composer";
 import { submitAgentInput } from "@/composer/submit";
 import { createMessageSubmissionWriter } from "@/composer/submission/writer";
 import { ComposerKeyboardScopeProvider, useComposerKeyboardScope } from "@/composer/keyboard-scope";
@@ -1372,6 +1379,27 @@ function ComposerContentImpl({
     [onChangeText],
   );
 
+  const isPluginDraft = resolveAgentControlsMode(agentControls) === "draft";
+  const hasDraftPills = useHasPluginComposerPills(
+    serverId,
+    workspaceId ?? "",
+    agentId,
+    isPluginDraft,
+  );
+  const pluginComposerKey = serverId && agentId ? buildDraftStoreKey({ serverId, agentId }) : null;
+  useLayoutEffect(() => {
+    if (!pluginComposerKey) return;
+    const remove = registerPluginComposer(pluginComposerKey, {
+      getText: () => messageInputRef.current?.getText() ?? textSource.getSnapshot(),
+      replaceText: (text) => replaceUserInput(text),
+    });
+    const unsubscribe = textSource.subscribe(() => notifyPluginComposer(pluginComposerKey));
+    return () => {
+      unsubscribe();
+      remove();
+    };
+  }, [pluginComposerKey, replaceUserInput, textSource]);
+
   const runClientSlashCommand = useCallback(
     (command: ClientSlashCommand): boolean => {
       if (command.execution !== "immediate" || !onClientSlashCommand) {
@@ -1595,10 +1623,12 @@ function ComposerContentImpl({
       setSelectedAttachments([]);
       resetSuppression();
       clearSentAttachments(queuedAttachments);
+      if (pluginComposerKey) markPluginComposerSubmitted(pluginComposerKey);
     },
     [
       agentId,
       clearSentAttachments,
+      pluginComposerKey,
       queueWriter,
       resetSuppression,
       setSelectedAttachments,
@@ -1644,6 +1674,9 @@ function ComposerContentImpl({
         },
         failedToSendMessage: t("composer.errors.failedToSend"),
       });
+      if (pluginComposerKey && result === "submitted") {
+        markPluginComposerSubmitted(pluginComposerKey);
+      }
       completeSubmit({
         result,
         outgoingAttachments,
@@ -1651,6 +1684,7 @@ function ComposerContentImpl({
     },
     [
       allowEmptySubmit,
+      pluginComposerKey,
       beginSubmit,
       clearDraft,
       completeSubmit,
@@ -2363,6 +2397,17 @@ function ComposerContentImpl({
         {/* Input area */}
         <View style={inputAreaContainerStyle}>
           <View style={styles.inputAreaContent}>
+            {isPluginDraft && hasDraftPills && (
+              <View style={styles.draftPluginPills}>
+                <PluginComposerPills
+                  serverId={serverId}
+                  workspaceId={workspaceId ?? ""}
+                  agentId={agentId}
+                  compact={isCompactLayout}
+                  draft
+                />
+              </View>
+            )}
             {queueList}
             {sendErrorNode}
 
@@ -2581,6 +2626,12 @@ const styles = StyleSheet.create((theme: Theme) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing[2],
+  },
+  draftPluginPills: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    paddingBottom: 8,
   },
   queueActionButton: {
     width: 32,

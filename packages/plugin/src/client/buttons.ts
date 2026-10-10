@@ -52,6 +52,6 @@ export interface PluginHeaderButtonContribution {
   button: PluginButton;
 }
 
-export interface PluginComposerPillContribution extends PluginHeaderButtonContribution {
-  agentId: string;
-}
+export type PluginComposerPillContribution =
+  | (PluginHeaderButtonContribution & { agentId: string; scope?: "agent" })
+  | { id: string; scope: "draft"; button: PluginButton };

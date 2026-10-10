@@ -1807,12 +1807,31 @@ Omit `label` for an icon-only header button. Menus and popovers show a chevron o
 Compact header buttons use icons without labels or chevrons. Paseo moves excess contributions
 into a shared overflow menu. Placement and overflow are host decisions.
 
+## Edit a local conversation draft
+
+The locally patched 0.11.1 desktop client supplies `client.composer.ref(agentId)` and the same
+`composer` capability to command callbacks. Stock 0.11.1 clients do not supply it. Check this
+capability before offering draft insertion. The agent composer must be open on this client.
+
+`getDraft()` reads live input text, including typing that has not yet reached persistence. It returns
+`{ text, revision, submissionRevision }`. `replaceDraft({ text, revision })` rejects a stale revision,
+updates the main input, and preserves attachments. Neither method sends to an agent.
+`subscribe(listener)` observes draft updates and successful submissions; release it on cleanup.
+`submissionRevision` advances after a send is accepted or a message is queued locally, and remains
+unchanged when a send fails. Slash commands do not advance it. Subscriptions end when the plugin stops.
+Drafts belong to the selected host and this client; they do not synchronize edits to another client.
+
 ## Composer pills
 
 `client.addComposerPill({ id, workspaceId, agentId, button })` uses the same [button descriptor](#button-descriptor)
 and returns the same registration. It targets one agent's composer track alongside Tasks and
 Subagents. Composer pills always show the icon and `label` (or `title` when `label` is omitted).
 They never show a chevron, including for menus and popovers.
+
+The locally patched desktop client also accepts `{ id, scope: "draft", button }` to show a pill
+in each first-message chat composer, before an agent exists. Its content receives the local draft's
+composer ID as `agentId`; pass that ID to `client.composer.ref(agentId)` to edit the first message.
+Draft pills are host-scoped and do not appear in existing agent composers or terminal launchers.
 
 ```tsx
 const pill = client.addComposerPill({

@@ -746,3 +746,44 @@ it("binds imported getters to each originating installation across delayed callb
   await first.cleanup();
   await second.cleanup();
 });
+
+describe("local plugin composer", () => {
+  it("reads live typing, rejects stale replacements and isolates host drafts", async () => {
+    const { createPluginComposer, registerPluginComposer, markPluginComposerSubmitted } =
+      await import("./composer");
+    const lifetime = new AbortController();
+    let text = "original";
+    const remove = registerPluginComposer("agent:composer-test:agent", {
+      getText: () => text,
+      replaceText: (next) => {
+        text = next;
+      },
+    });
+    const ref = createPluginComposer("composer-test", lifetime.signal).ref("agent");
+    const first = ref.getDraft();
+    text = "typed before the store publishes";
+    expect(ref.getDraft().text).toBe(text);
+    expect(() => ref.replaceDraft({ text: "lost update", revision: first.revision })).toThrow(
+      "Your draft changed",
+    );
+    ref.replaceDraft({ text: "prefix\n\n" + text, revision: ref.getDraft().revision });
+    expect(text).toBe("prefix\n\ntyped before the store publishes");
+    expect(() =>
+      createPluginComposer("other-host", lifetime.signal).ref("agent").getDraft(),
+    ).toThrow("Open this agent");
+    let notifications = 0;
+    const unsubscribe = ref.subscribe(() => {
+      notifications++;
+    });
+    markPluginComposerSubmitted("agent:composer-test:agent");
+    expect(ref.getDraft().submissionRevision).toBe(1);
+    expect(notifications).toBe(1);
+    unsubscribe();
+    markPluginComposerSubmitted("agent:composer-test:agent");
+    expect(notifications).toBe(1);
+    remove();
+    expect(() => ref.getDraft()).toThrow("Open this agent");
+    lifetime.abort();
+    expect(() => ref.getDraft()).toThrow("plugin has stopped");
+  });
+});
